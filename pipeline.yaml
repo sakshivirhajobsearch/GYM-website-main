@@ -1,0 +1,58 @@
+# Name of the pipeline
+name: $(Build.DefinitionName)-$(Date:yyyyMMdd)$(Rev:.r)
+
+# Trigger settings
+trigger:
+  branches:
+    include:
+      - main
+      - develop # Automatically triggers on pushes to these branches
+
+# Pool definition
+pool:
+  vmImage: 'windows-latest' # Use a Microsoft-hosted agent with Windows
+
+# Variables
+variables:
+  buildConfiguration: 'Release' # Default build configuration
+
+# Stages in the pipeline
+stages:
+  - stage: Build
+    displayName: 'Build Stage'
+    jobs:
+      - job: BuildJob
+        displayName: 'Build Job'
+        steps:
+          # Check out the code
+          - task: Checkout@1
+            displayName: 'Checkout Code'
+
+          # Restore dependencies (for .NET projects)
+          - task: UseDotNet@2
+            displayName: 'Install .NET SDK'
+            inputs:
+              packageType: 'sdk'
+              version: '7.0.x' # Specify your required version
+
+          - script: |
+              dotnet restore
+            displayName: 'Restore Dependencies'
+
+          # Build the project
+          - script: |
+              dotnet build --configuration $(buildConfiguration)
+            displayName: 'Build Project'
+
+          # Run tests
+          - script: |
+              dotnet test --configuration $(buildConfiguration) --no-build --verbosity normal
+            displayName: 'Run Unit Tests'
+
+          # Publish build artifacts
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Build Artifacts'
+            inputs:
+              pathToPublish: '$(Build.ArtifactStagingDirectory)'
+              artifactName: 'drop'
+              publishLocation: 'Container'
